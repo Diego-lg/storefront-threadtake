@@ -133,15 +133,6 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
         >
           {loading ? "Generating..." : "Generate Image"}
         </button>
-        {/* New Button */}
-        <button
-          type="button" // Important: type="button" to prevent form submission
-          onClick={handleGenerateAndApply}
-          disabled={loading || !inputValue}
-          className="ml-2 px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
-        >
-          {loading ? "Generating..." : "Generate & Apply Texture"}
-        </button>
       </form>
       {error && <p className="text-red-500 mt-2">{error}</p>}
       {generatedImage}

@@ -4,6 +4,7 @@ import "./globals.css";
 import Footer from "@/components/footer";
 import Navbar from "@/components/navbar";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/react";
 import ClientProviders from "@/providers/client-providers"; // Import the client providers wrapper
 import { ThemeProvider } from "next-themes"; // Import ThemeProvider
 const font = Urbanist({ subsets: ["latin"] });
@@ -30,6 +31,7 @@ export default function RootLayout({
           <ClientProviders>
             <Navbar />
             {children}
+            <Analytics />
             <SpeedInsights />
             <Footer />
           </ClientProviders>
