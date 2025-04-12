@@ -336,7 +336,18 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = (props) => {
       ); // DEBUG
 
       // --- Axios request ---
-      // Point to rembg.py endpoint (port 5002) and expect JSON with node keys
+      const rembgApiUrl = process.env.NEXT_PUBLIC_REMBG_API_URL;
+      if (!rembgApiUrl) {
+        console.error(
+          "Error: NEXT_PUBLIC_REMBG_API_URL environment variable is not set."
+        );
+        toast.error("Background removal service is not configured.", {
+          id: "rmbg-toast",
+        });
+        setIsRemovingBackground(false);
+        return; // Stop execution if URL is missing
+      }
+      // Point to rembg.py endpoint and expect JSON with node keys
       axiosInstance
         .post<{
           // Expect the JSON object with node keys
@@ -346,7 +357,7 @@ const CustomizationPanel: React.FC<CustomizationPanelProps> = (props) => {
             error?: string;
           };
         }>(
-          `${process.env.NEXT_PUBLIC_REMBG_API_URL}/remove-background`, // Use env variable
+          `${rembgApiUrl}/remove-background`, // Use checked env variable
           formData, // Send FormData
           {
             headers: {
