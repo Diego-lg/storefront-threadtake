@@ -20,7 +20,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning={true}>
-      <body className={font.className}>
+      {/* Added flex flex-col min-h-screen */}
+      <body className={`${font.className} flex flex-col min-h-screen`}>
         {/* Wrap client-side providers and main content */}
         <ThemeProvider
           attribute="class"
@@ -30,7 +31,8 @@ export default function RootLayout({
         >
           <ClientProviders>
             <Navbar />
-            {children}
+            {/* Added main tag with flex-grow */}
+            <main className="flex-grow">{children}</main>
             <Analytics />
             <SpeedInsights />
             <Footer />

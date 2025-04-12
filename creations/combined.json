@@ -1,0 +1,117 @@
+{
+  "1": {
+    "inputs": {
+      "ckpt_name": "stableDiffusion35_largeTurbo.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": { "title": "Load Checkpoint (T2I)" }
+  },
+  "9": {
+    "inputs": {
+      "clip_name1": "clip_l.safetensors",
+      "clip_name2": "clip_g.safetensors",
+      "clip_name3": "t5xxl_fp8_e4m3fn_scaled.safetensors"
+    },
+    "class_type": "TripleCLIPLoader",
+    "_meta": { "title": "TripleCLIPLoader (T2I)" }
+  },
+  "8": {
+    "inputs": {
+      "lora_name": "Anime Art V3.safetensors",
+      "strength_model": 0,
+      "strength_clip": 1.0,
+      "model": ["1", 0],
+      "clip": ["9", 0]
+    },
+    "class_type": "LoraLoader",
+    "_meta": { "title": "Load LoRA (T2I)" }
+  },
+  "2": {
+    "inputs": {
+      "text": "Retro pixelated texture of a nyan cat",
+      "clip": ["8", 1]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "CLIP Text Encode (Positive T2I)" }
+  },
+  "3": {
+    "inputs": {
+      "text": "bad quality, poor quality, doll, disfigured, jpg, toy, bad anatomy, missing limbs, missing fingers, 3d, cgi",
+      "clip": ["8", 1]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "CLIP Text Encode (Negative T2I)" }
+  },
+  "5": {
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": { "title": "Empty Latent Image (T2I)" }
+  },
+  "4": {
+    "inputs": {
+      "seed": 811524923234878,
+      "steps": 4,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "beta",
+      "denoise": 1,
+      "model": ["8", 0],
+      "positive": ["2", 0],
+      "negative": ["3", 0],
+      "latent_image": ["5", 0]
+    },
+    "class_type": "KSampler",
+    "_meta": { "title": "KSampler (T2I)" }
+  },
+  "6": {
+    "inputs": {
+      "samples": ["4", 0],
+      "vae": ["1", 2]
+    },
+    "class_type": "VAEDecode",
+    "_meta": { "title": "VAE Decode (T2I)" }
+  },
+  "7": {
+    "inputs": {
+      "images": ["6", 0]
+    },
+    "class_type": "PreviewImage",
+    "_meta": { "title": "Preview Image (T2I Output)" }
+  },
+
+  "10": {
+    "inputs": {
+      "image": "placeholder_image_for_rembg.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": { "title": "Load Image (RemBG Input)" }
+  },
+  "11": {
+    "inputs": {
+      "model": "RMBG-2.0",
+      "sensitivity": 1,
+      "process_res": 1024,
+      "mask_blur": 0,
+      "mask_offset": 0,
+      "background": "Alpha",
+      "invert_output": false,
+      "optimize": "default",
+      "refine_foreground": false,
+
+      "image": ["10", 0]
+    },
+    "class_type": "RMBG",
+    "_meta": { "title": "Remove Background (RMBG)" }
+  },
+  "12": {
+    "inputs": {
+      "images": ["11", 0]
+    },
+    "class_type": "PreviewImage",
+    "_meta": { "title": "Preview Image (RemBG Output)" }
+  }
+}

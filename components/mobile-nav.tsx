@@ -47,7 +47,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ data, isOpen, onClose }) => {
         <div className="flex items-center justify-between px-4">
           <Link href="/" className="flex items-center" onClick={onClose}>
             <p className="font-bold text-xl text-black dark:text-white">
-              Thread Heaven
+              Thread Take
             </p>
           </Link>
           <Button

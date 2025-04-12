@@ -526,16 +526,22 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
           logoTexture &&
           backMeshRef.current && (
             <>
-              {/* Debug Logs Start */}
-              {console.log("Applying logoTexture as decal to back...")}
-              {console.log("Decal Texture:", logoTexture)}
-              {console.log("Target Mesh Ref Exists:", !!backMeshRef.current)}
-              {console.log("Decal Props:", {
-                position: decalPosition,
-                rotation: decalRotation,
-                scale: decalScaleVector,
-              })}
-              {/* Debug Logs End */}
+              {/* --- DEBUG LOGS for Back Decal --- */}
+              {console.log("[DEBUG Back Decal] Rendering back decal.")}
+              {console.log(
+                "[DEBUG Back Decal] logoTexture exists:",
+                !!logoTexture
+              )}
+              {console.log(
+                "[DEBUG Back Decal] logoTexture source:",
+                logoTexture?.source?.data?.src?.substring(0, 60) + "..."
+              )}
+              {console.log(
+                "[DEBUG Back Decal] Target Mesh Ref Exists:",
+                !!backMeshRef.current
+              )}
+              {/* --- END DEBUG LOGS --- */}
+
               <Decal
                 mesh={backMeshRef as React.MutableRefObject<THREE.Mesh>} // Assert as MutableRefObject (non-null current)
                 position={decalPosition}
@@ -544,21 +550,19 @@ const TShirtModel: React.FC<TShirtModelProps> = ({
                 map={logoTexture!} // Assert non-null
               >
                 {/* Decal Material Setup - Use logo PBR properties */}
+                {/* Aligning with front decal material settings */}
                 <meshStandardMaterial
                   map={logoTexture!} // Assert non-null
-                  // Use logo-specific PBR maps
-                  aoMap={aoMap_logo}
-                  normalMap={normalMap_logo}
-                  roughnessMap={roughnessMap_logo}
-                  aoMapIntensity={1} // Standard intensity
-                  // Set decal-specific roughness/metalness if needed, otherwise maps control it
-                  // roughness={0.2}
-                  // metalness={0.0}
+                  aoMap={aoMap} // Use base fabric PBR maps like front
+                  normalMap={normalMap}
+                  roughnessMap={roughnessMap}
+                  roughness={0.4} // Match front decal roughness
                   // Decal specific settings
                   polygonOffset
                   polygonOffsetFactor={-1} // Push decal slightly forward
-                  polygonOffsetUnits={-1}
-                  transparent={false} // Enable transparency for PNG logos etc.
+                  transparent={true} // *** IMPORTANT: Enable transparency ***
+                  depthTest={false} // Match front decal setting
+                  depthWrite={false} // Match front decal setting
                 />
               </Decal>
             </>

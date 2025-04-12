@@ -2,13 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-html,
-body,
-:root {
-  height: 100%;
-}
-
-
+/* Removed height: 100% from html, body, :root */
 
 @layer base {
   :root {
@@ -65,8 +59,6 @@ body,
     --chart-5: 340 75% 55%;
   }
 }
-
-
 
 @layer base {
   * {

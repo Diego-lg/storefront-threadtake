@@ -4,16 +4,18 @@ import json
 import urllib.request
 import urllib.parse
 import websocket # NOTE: needs websocket-client library
-# import requests # This import doesn't seem to be used, can be removed if true
 import io
 import os
+import time # Added for polling
+import random # Required for generating random seeds
 from PIL import Image
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from datetime import datetime
+# import requests # Not needed for this script
 
 # --- Configuration ---
-COMFYUI_URL = "http://127.0.0.1:8188" # Your ComfyUI server address
+COMFYUI_URL = "http://127.0.0.1:8080" # Your ComfyUI server address
 # The *name* of the JSON workflow file saved via "Save (API Format)"
 # *** This file MUST be in the SAME directory as this Python script ***
 WORKFLOW_FILENAME = "workflow_api.json"
@@ -21,6 +23,10 @@ WORKFLOW_FILENAME = "workflow_api.json"
 PROMPT_NODE_ID = "2" # <--- *** CHANGE THIS TO YOUR PROMPT NODE ID ***
 # The ID of the node that outputs the final image (e.g., SaveImage, PreviewImage)
 OUTPUT_NODE_ID = "7" # <--- *** CHANGE THIS TO YOUR FINAL IMAGE NODE ID ***
+
+# --- Generate a persistent Client ID for this script instance ---
+CLIENT_ID = str(uuid.uuid4())
+print(f"Persistent Client ID for this session: {CLIENT_ID}")
 
 # --- Dynamic Paths ---
 # Directory where this script is located
@@ -78,110 +84,100 @@ def get_history(prompt_id):
         with urllib.request.urlopen(f"{COMFYUI_URL}/history/{prompt_id}") as response:
             return json.loads(response.read())
     except Exception as e:
-        print(f"Error fetching history: {e}")
+        print(f"Error fetching history for {prompt_id}: {e}")
         return None
 
-def get_image_filename_via_websocket(client_id, prompt_id, target_node_id):
+def wait_for_output_and_get_details(prompt_id, target_node_ids, timeout=120, interval=2):
     """
-    Connects to ComfyUI websocket, waits for execution data for the
-    specific prompt and node, and returns the output image filename, subfolder, and type.
+    Polls the /history endpoint for a given prompt_id until the target output nodes
+    are found or a timeout occurs.
+
+    Args:
+        prompt_id (str): The ID of the prompt to check history for.
+        target_node_ids (list or str): A list of target output node IDs or a single ID string.
+        timeout (int): Maximum time to wait in seconds.
+        interval (int): Time interval between polling attempts in seconds.
+
+    Returns:
+        dict: A dictionary mapping target node IDs to their output details
+              (filename, subfolder, type) or an error message.
+              Returns None if a connection error occurs during polling.
+              Returns an incomplete dict if timeout occurs before all nodes are found.
     """
-    ws = None # Initialize ws to None
-    try:
-        ws_url = f"ws://{COMFYUI_URL.split('//')[1]}/ws?clientId={client_id}"
-        ws = websocket.WebSocket()
-        ws.connect(ws_url)
-        print(f"Websocket connected for client_id: {client_id}")
+    if isinstance(target_node_ids, str):
+        target_node_ids = [target_node_ids] # Ensure it's a list
 
-        while True:
-            out = ws.recv()
-            if isinstance(out, str):
-                message = json.loads(out)
-                # print(f"Received WS message type: {message.get('type')}") # Debug specific message types
+    start_time = time.time()
+    output_details = {}
+    target_node_set = set(target_node_ids)
+    found_nodes = set()
 
-                # Primary check: execution finished for the specific target node
-                if message['type'] == 'executed' and 'data' in message:
-                    data = message['data']
-                    if data.get('node') == target_node_id and data.get('prompt_id') == prompt_id:
-                        print(f"Execution of target node {target_node_id} finished for prompt_id: {prompt_id}")
-                        if 'output' in data and 'images' in data['output'] and data['output']['images']:
-                             image_info = data['output']['images'][0]
-                             filename = image_info['filename']
-                             subfolder = image_info.get('subfolder', '')
-                             folder_type = image_info.get('type', 'output')
-                             print(f"Found image directly from 'executed' message: {filename} in subfolder '{subfolder}' (type: {folder_type})")
-                             ws.close()
-                             return filename, subfolder, folder_type
+    print(f"Polling history for prompt_id: {prompt_id}, waiting for nodes: {target_node_set}")
+
+    while time.time() - start_time < timeout:
+        if found_nodes == target_node_set:
+            print(f"All target nodes found in history for prompt {prompt_id}.")
+            break # All nodes found
+
+        history = get_history(prompt_id)
+        if history is None:
+             # Connection error during get_history
+             print(f"Error polling history for prompt {prompt_id} (connection issue?).")
+             # Return None or an error dict? Let's return None for connection errors.
+             return None
+
+        if prompt_id in history:
+            history_entry = history[prompt_id]
+            # print(f"History entry found for {prompt_id}. Status: {history_entry.get('status')}") # Optional status log
+
+            if 'outputs' in history_entry:
+                current_outputs = history_entry['outputs']
+                for node_id in target_node_set - found_nodes: # Only check for nodes not yet found
+                    if node_id in current_outputs:
+                        outputs = current_outputs[node_id]
+                        if 'images' in outputs and outputs['images']:
+                            image_info = outputs['images'][0] # Assuming one image per node
+                            filename = image_info['filename']
+                            subfolder = image_info.get('subfolder', '')
+                            folder_type = image_info.get('type', 'output')
+                            output_details[node_id] = {
+                                "filename": filename,
+                                "subfolder": subfolder,
+                                "type": folder_type
+                            }
+                            found_nodes.add(node_id)
+                            print(f"  -> Found output for node {node_id} in history.")
                         else:
-                             print(f"Warning: 'executed' message for node {target_node_id} received, but no image data found directly. Trying history lookup.")
-                             # Fall through to history lookup if direct data missing
+                            # Node executed but no image output? Mark as error for this node.
+                            if node_id not in output_details: # Don't overwrite previous findings
+                                output_details[node_id] = {"error": f"Node {node_id} executed but no image found in history output."}
+                                found_nodes.add(node_id) # Mark as processed to avoid infinite loop
 
-                # Secondary check: execution finished for the whole prompt (fallback)
-                elif message['type'] == 'executed' and 'data' in message:
-                     data = message['data']
-                     # Check if this is the final execution message for the prompt
-                     if data.get('prompt_id') == prompt_id and data.get('node') is None and 'output' in data: # Often node is None on final executed msg
-                         print(f"Execution finished (general) for prompt_id: {prompt_id}. Attempting history lookup.")
-                         history = get_history(prompt_id)
-                         if not history or prompt_id not in history:
-                             print(f"Error: Could not find history for prompt_id {prompt_id} after 'executed' message.")
-                             ws.close()
-                             return None, None, None # Indicate error
+            # Check if prompt execution failed (optional, based on status if available)
+            # status_info = history_entry.get('status')
+            # if status_info and status_info.get('status_str') == 'error':
+            #     print(f"Error status found in history for prompt {prompt_id}.")
+            #     # Mark remaining nodes as errored?
+            #     for node_id in target_node_set - found_nodes:
+            #         output_details[node_id] = {"error": "Prompt execution failed according to history status."}
+            #     return output_details # Return immediately on prompt error
 
-                         history_entry = history[prompt_id]
-                         if 'outputs' in history_entry and target_node_id in history_entry['outputs']:
-                             outputs = history_entry['outputs'][target_node_id]
-                             if 'images' in outputs and outputs['images']:
-                                 image_info = outputs['images'][0] # Assuming first image is the target
-                                 filename = image_info['filename']
-                                 subfolder = image_info.get('subfolder', '') # Get subfolder, default to empty string
-                                 folder_type = image_info.get('type', 'output') # Get type, default to 'output'
-                                 print(f"Found image via history lookup: {filename} in subfolder '{subfolder}' (type: {folder_type})")
-                                 ws.close()
-                                 return filename, subfolder, folder_type
-                             else:
-                                 print(f"Error: No 'images' found in the history output of node {target_node_id}")
-                                 ws.close()
-                                 return None, None, None # Indicate error
-                         else:
-                             print(f"Error: No 'outputs' found for node {target_node_id} in history")
-                             ws.close()
-                             return None, None, None # Indicate error
+        else:
+            # Prompt ID not yet in history, wait and retry
+            # print(f"Prompt {prompt_id} not in history yet.")
+            pass
 
-                # Optional: Track progress
-                elif message['type'] == 'executing':
-                    data = message['data']
-                    if data.get('node') is None and data.get('prompt_id') == prompt_id:
-                        print(f"Execution started for prompt_id: {prompt_id}")
-                    # You could add more detailed progress tracking here if needed
+        time.sleep(interval)
 
-            else:
-                 # Ignore binary messages (like previews)
-                 pass
+    # After loop (timeout or all found)
+    if found_nodes != target_node_set:
+        print(f"Warning: Polling timed out after {timeout}s for prompt {prompt_id}. Found {len(found_nodes)}/{len(target_node_set)} nodes.")
+        # Add error entries for nodes never found
+        for node_id in target_node_set - found_nodes:
+             if node_id not in output_details:
+                 output_details[node_id] = {"error": "Polling timed out before node output found in history."}
 
-    except ConnectionRefusedError:
-        print(f"Error: Websocket connection refused ({ws_url}). Is ComfyUI running and websocket enabled?")
-        return None, None, None
-    except websocket.WebSocketException as e:
-        print(f"Websocket error: {e}")
-        return None, None, None
-    except Exception as e:
-        print(f"Error in websocket processing: {e}")
-        # Ensure websocket is closed even if an error occurs mid-processing
-        if ws and ws.connected:
-            try:
-                ws.close()
-            except Exception as close_err:
-                print(f"Error closing websocket: {close_err}")
-        return None, None, None
-    finally:
-        # Ensure websocket is closed if the loop exits unexpectedly or successfully
-        if ws and ws.connected:
-             try:
-                 ws.close()
-                 print("Websocket closed.")
-             except Exception as close_err:
-                 print(f"Error closing websocket in finally block: {close_err}")
+    return output_details
 
 
 @app.route('/generate', methods=['POST'])
@@ -236,27 +232,57 @@ def generate_image_endpoint():
     except Exception as e: # Catch any unexpected modification errors
         print(f"Error modifying workflow node {PROMPT_NODE_ID}: {e}")
         return jsonify({"error": "Failed to modify workflow with the new prompt."}), 500
+  # --- *** ADD THIS SECTION TO RANDOMIZE SEED *** ---
+    KSAMPLER_NODE_ID = "4" # <--- Add this near your other config variables
+    if KSAMPLER_NODE_ID not in workflow:
+        print(f"Error: KSampler node ID '{KSAMPLER_NODE_ID}' not found in workflow keys.")
+        print(f"Available node IDs: {list(workflow.keys())}")
+        return jsonify({"error": f"KSampler node ID '{KSAMPLER_NODE_ID}' not found in workflow."}), 500
+
+    ksampler_node = workflow[KSAMPLER_NODE_ID]
+    if 'inputs' not in ksampler_node or 'seed' not in ksampler_node.get('inputs', {}):
+         print(f"Error: Node {KSAMPLER_NODE_ID} structure incorrect. Expected 'inputs' with a 'seed' field.")
+         print(f"Node content: {json.dumps(ksampler_node, indent=2)}")
+         return jsonify({"error": f"Workflow structure error: Cannot find 'inputs.seed' in node {KSAMPLER_NODE_ID}."}), 500
+
+    try:
+        # Generate a random seed (ComfyUI uses large integers)
+        new_seed = random.randint(0, 0xffffffffffffffff) # Generates a 64-bit integer
+        workflow[KSAMPLER_NODE_ID]['inputs']['seed'] = new_seed
+        print(f"Set random seed in node {KSAMPLER_NODE_ID} to: {new_seed}")
+    except Exception as e:
+        print(f"Error modifying seed in workflow node {KSAMPLER_NODE_ID}: {e}")
+        return jsonify({"error": "Failed to set random seed in workflow."}), 500
+    # --- *** END OF ADDED SECTION *** ---
 
     # --- Queue Prompt ---
-    client_id = str(uuid.uuid4())
-    queue_response = queue_prompt(workflow, client_id)
+    # Use the persistent CLIENT_ID
+    queue_response = queue_prompt(workflow, CLIENT_ID)
 
     if not queue_response or 'prompt_id' not in queue_response:
         print("Error: Failed to queue prompt. Queue response:", queue_response)
         return jsonify({"error": "Failed to queue prompt with ComfyUI. Check ComfyUI connection and logs."}), 500
 
     prompt_id = queue_response['prompt_id']
-    print(f"Prompt queued successfully. Prompt ID: {prompt_id}")
+    print(f"Prompt queued successfully. Prompt ID: {prompt_id} (Client ID: {CLIENT_ID})")
 
-    # --- Wait for Image using Websocket ---
-    filename, subfolder, folder_type = get_image_filename_via_websocket(client_id, prompt_id, OUTPUT_NODE_ID)
+    # --- Wait for Image using Polling ---
+    output_details_dict = wait_for_output_and_get_details(prompt_id, OUTPUT_NODE_ID) # Pass single ID
 
-    if not filename:
-        print(f"Error: Could not retrieve image filename via websocket for prompt_id {prompt_id}.")
-        # Optional: Fallback to polling /history might be added here, but websocket is preferred
-        history = get_history(prompt_id) # Attempt history lookup as last resort
-        print(f"History lookup for prompt {prompt_id}: {json.dumps(history, indent=2)}")
-        return jsonify({"error": "Failed to get generated image filename from ComfyUI after queuing."}), 500
+    # --- Process Polling Result ---
+    if output_details_dict is None: # Indicates connection error during polling
+         print(f"Error: Connection error while polling history for prompt_id {prompt_id}.")
+         return jsonify({"error": "Failed to get generated image details (history connection error)."}), 500
+
+    if OUTPUT_NODE_ID not in output_details_dict or "filename" not in output_details_dict.get(OUTPUT_NODE_ID, {}):
+        error_detail = output_details_dict.get(OUTPUT_NODE_ID, {}).get("error", "Output not found in history.")
+        print(f"Error: Could not retrieve image details via history polling for prompt_id {prompt_id}. Error: {error_detail}")
+        return jsonify({"error": f"Failed to get generated image details from ComfyUI. Reason: {error_detail}"}), 500
+
+    output_details = output_details_dict[OUTPUT_NODE_ID]
+    filename = output_details['filename']
+    subfolder = output_details['subfolder']
+    folder_type = output_details['type']
 
     # --- Fetch Image Data ---
     print(f"Fetching image: filename={filename}, subfolder={subfolder}, type={folder_type}")
@@ -296,6 +322,7 @@ if __name__ == "__main__":
     print(f"Prompt Node ID: {PROMPT_NODE_ID}")
     print(f"Output Node ID: {OUTPUT_NODE_ID}")
     print(f"Saving images to: {CREATIONS_DIR}")
+    print(f"Using Client ID: {CLIENT_ID}") # Log the client ID being used
 
     # Check if workflow file exists at startup for early feedback
     if not os.path.exists(WORKFLOW_FILE_PATH):

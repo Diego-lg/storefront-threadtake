@@ -1,7 +1,7 @@
 {
   "1": {
     "inputs": {
-      "ckpt_name": "stableDiffusion35_largeTurbo.safetensors"
+      "ckpt_name": "sd35MediumGoogleFLAN_sd35FLANFP16.safetensors"
     },
     "class_type": "CheckpointLoaderSimple",
     "_meta": {
@@ -10,7 +10,7 @@
   },
   "2": {
     "inputs": {
-      "text": "Retro pixelated texture of a nyan cat",
+      "text": "A white swiss shepherd as a jedi and a samoyed dog as an evil jedi anime style, studio ghibli",
       "clip": ["8", 1]
     },
     "class_type": "CLIPTextEncode",
@@ -20,7 +20,7 @@
   },
   "3": {
     "inputs": {
-      "text": "bad quality, poor quality, doll, disfigured, jpg, toy, bad anatomy, missing limbs, missing fingers, 3d, cgi",
+      "text": "bad quality, poor quality",
       "clip": ["8", 1]
     },
     "class_type": "CLIPTextEncode",
@@ -30,7 +30,8 @@
   },
   "4": {
     "inputs": {
-      "seed": 811524923234878,
+      "seed": 0,
+      "control_after_generate": "randomize",
       "steps": 4,
       "cfg": 1,
       "sampler_name": "euler",
@@ -78,26 +79,15 @@
   },
   "8": {
     "inputs": {
-      "lora_name": "Anime Art V3.safetensors",
-      "strength_model": 0,
+      "lora_name": "tensorart_sd3.5m_4steps.safetensors",
+      "strength_model": 1.0000000000000002,
       "strength_clip": 1.0000000000000002,
       "model": ["1", 0],
-      "clip": ["9", 0]
+      "clip": ["1", 1]
     },
     "class_type": "LoraLoader",
     "_meta": {
       "title": "Load LoRA"
-    }
-  },
-  "9": {
-    "inputs": {
-      "clip_name1": "clip_l.safetensors",
-      "clip_name2": "clip_g.safetensors",
-      "clip_name3": "t5xxl_fp8_e4m3fn_scaled.safetensors"
-    },
-    "class_type": "TripleCLIPLoader",
-    "_meta": {
-      "title": "TripleCLIPLoader"
     }
   }
 }

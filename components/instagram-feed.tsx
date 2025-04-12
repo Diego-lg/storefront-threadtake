@@ -67,7 +67,7 @@ function InstagramFeed({ posts = instagramPosts }: InstagramFeedProps) {
             Follow Us on Instagram
           </h2>
           <p className="max-w-2xl mx-auto text-muted-foreground mb-6">
-            Tag your photos with #Thread Heaven for a chance to be featured
+            Tag your photos with #THREAD TAKE for a chance to be featured
           </p>
           <a
             href="https://instagram.com"
@@ -76,7 +76,7 @@ function InstagramFeed({ posts = instagramPosts }: InstagramFeedProps) {
             className="inline-flex items-center text-pink-600 font-medium hover:text-pink-700"
           >
             <Instagram size={20} className="mr-2" />
-            @Thread Heaven
+            @THREAD TAKE
           </a>
         </div>
 

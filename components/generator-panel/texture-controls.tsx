@@ -19,15 +19,15 @@ interface TextureControlsProps {
   ) => void;
   uploadedLogoTexture: THREE.Texture | null;
   handleImageUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  clearUploadedLogo: () => void;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  // clearUploadedLogo: () => void; // Prop removed
+  // fileInputRef: React.RefObject<HTMLInputElement | null>; // Prop removed
   offsetXMin: number;
   offsetXMax: number;
   // Pattern Props
   uploadedPatternTexture: THREE.Texture | null;
   handlePatternUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  clearUploadedPattern: () => void;
-  patternFileInputRef: React.RefObject<HTMLInputElement | null>;
+  // clearUploadedPattern: () => void; // Prop removed
+  // patternFileInputRef: React.RefObject<HTMLInputElement | null>; // Prop removed
 }
 
 const TextureControls: React.FC<TextureControlsProps> = ({
@@ -41,15 +41,15 @@ const TextureControls: React.FC<TextureControlsProps> = ({
   setLogoOffset,
   uploadedLogoTexture,
   // handleImageUpload, // Removed unused prop
-  clearUploadedLogo,
-  fileInputRef,
+  // clearUploadedLogo, // Prop removed
+  // fileInputRef, // Prop removed
   offsetXMin,
   offsetXMax,
   // Pattern Props
   uploadedPatternTexture,
   // handlePatternUpload, // Removed unused prop
-  clearUploadedPattern,
-  patternFileInputRef,
+  // clearUploadedPattern, // Prop removed
+  // patternFileInputRef, // Prop removed
 }) => {
   return (
     // Adjust responsive spacing
@@ -58,12 +58,7 @@ const TextureControls: React.FC<TextureControlsProps> = ({
         // Logo Controls
         // Adjust responsive spacing
         <div className="space-y-2 sm:space-y-3">
-          <UploadClearButtons
-            label="Logo"
-            fileInputRef={fileInputRef}
-            uploadedTexture={uploadedLogoTexture}
-            clearHandler={clearUploadedLogo}
-          />
+          {/* UploadClearButtons removed from here */}
           {/* Logo Placement Controls */}
           {uploadedLogoTexture && (
             <>
@@ -163,12 +158,7 @@ const TextureControls: React.FC<TextureControlsProps> = ({
         // Pattern Controls
         // Adjust responsive spacing
         <div className="space-y-2 sm:space-y-3">
-          <UploadClearButtons
-            label="Pattern"
-            fileInputRef={patternFileInputRef}
-            uploadedTexture={uploadedPatternTexture}
-            clearHandler={clearUploadedPattern}
-          />
+          {/* UploadClearButtons removed from here */}
           {/* Add pattern-specific controls here if needed in the future */}
         </div>
       )}

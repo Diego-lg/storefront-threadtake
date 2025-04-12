@@ -7,7 +7,7 @@ const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
         <div>
           <h3 className="text-lg font-medium text-foreground mb-4">
-            THREAD HEAVEN
+            THREAD TAKE
           </h3>
           <p className="text-muted-foreground text-sm">
             Premium essentials crafted with the finest materials for everyday
@@ -127,7 +127,7 @@ const Footer: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-        <p>© {new Date().getFullYear()} Thread Heaven. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} THREAD TAKE. All rights reserved.</p>
       </div>
     </footer>
   );

@@ -1,30 +1,35 @@
 "use client";
 
 import Image from "next/image";
-import React, { useState, FormEvent, ChangeEvent } from "react";
+import React, { useState, ChangeEvent } from "react";
 
 // Separate the image generation logic to be exported independently
 export const generateImageUrl = async (
   prompt: string
 ): Promise<string | null> => {
   console.log("generateImageUrl called with prompt:", prompt);
-  const apiEndpoint =
-    process.env.NEXT_PUBLIC_IMAGE_GENERATOR_API_ENDPOINT ||
-    "http://localhost:5000/generate";
-  const apiKey = process.env.IMAGE_GENERATOR_API_KEY;
+  const apiEndpoint = process.env.NEXT_PUBLIC_TEXT_TO_IMAGE; // Use the correct env variable
+
+  if (!apiEndpoint) {
+    console.error(
+      "Error: NEXT_PUBLIC_TEXT_TO_IMAGE environment variable is not set."
+    );
+    throw new Error("Image generation service is not configured.");
+  }
+  // const apiKey = process.env.IMAGE_GENERATOR_API_KEY; // Remove API Key logic
 
   try {
     const headers: HeadersInit = {
       "Content-Type": "application/json",
     };
-    if (apiKey) {
-      headers["Authorization"] = `Bearer ${apiKey}`;
-    }
+    // if (apiKey) { // Remove API Key logic
+    //   headers["Authorization"] = `Bearer ${apiKey}`;
+    // }
     console.log("Making request to:", apiEndpoint, "with headers:", headers);
     const response = await fetch(apiEndpoint, {
       method: "POST",
       headers,
-      body: JSON.stringify({ input: prompt }),
+      body: JSON.stringify({ input: prompt }), // Correct body format
     });
 
     console.log("Response status:", response.status);
@@ -76,18 +81,9 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
     }
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setImageSrc(null);
-    const imageUrl = await generateImage(inputValue);
-    if (imageUrl && onImageGenerated) {
-      onImageGenerated(imageUrl); // Call onImageGenerated with the new URL
-    }
-  };
-
   const handleGenerateAndApply = async () => {
     // This function specifically handles the "Generate & Apply Texture" button
-    setImageSrc(null); // Don't display the image locally in this component for this action
+    // setImageSrc(null); // Don't display the image locally in this component for this action
     setError(null);
     setLoading(true);
     try {
@@ -113,29 +109,31 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({
       width={512}
       height={512}
     />
-  ) : null;
+  ) : null; // Keep definition in case it's used elsewhere, but remove from render
 
   return (
-    <div>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          value={inputValue}
-          onChange={handleInputChange}
-          placeholder="Enter prompt"
-          required
-          className="px-4 py-2 mr-2 rounded border bg-transparent"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded"
-        >
-          {loading ? "Generating..." : "Generate Image"}
-        </button>
-      </form>
-      {error && <p className="text-red-500 mt-2">{error}</p>}
-      {generatedImage}
+    <div className="flex items-center space-x-2 w-full">
+      {" "}
+      {/* Added w-full */}
+      <input
+        type="text"
+        value={inputValue}
+        onChange={handleInputChange}
+        placeholder="Enter prompt for AI texture..."
+        required
+        className="px-4 py-2 rounded border bg-input text-foreground flex-grow" // Use theme colors, flex-grow
+      />
+      <button
+        type="button" // Change to type="button"
+        onClick={handleGenerateAndApply} // Call the specific handler
+        disabled={loading || !inputValue} // Disable if loading or no input
+        className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50" // Use theme colors, add disabled style
+      >
+        {loading ? "Generating..." : "Generate & Apply"}
+      </button>
+      {/* Consider moving error display outside this component or below */}
+      {/* {error && <p className="text-red-500 mt-2 text-xs">{error}</p>} */}
+      {/* Remove local image display: {generatedImage} */}
     </div>
   );
 };

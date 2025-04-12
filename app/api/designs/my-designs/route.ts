@@ -45,11 +45,23 @@ export async function GET(req: Request) {
 
     return NextResponse.json(designs);
   } catch (error) {
-    console.error("[STOREFRONT_MY_DESIGNS_GET]", error);
+    // Log more detailed error information
+    console.error("[STOREFRONT_MY_DESIGNS_GET] Error fetching designs:", error);
+    let errorMessage = "Internal error";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      console.error("[STOREFRONT_MY_DESIGNS_GET] Stack trace:", error.stack);
+    }
     // Ensure this returns a standard Response or NextResponse
-    return new NextResponse(JSON.stringify({ message: "Internal error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new NextResponse(
+      JSON.stringify({
+        message: "Internal server error fetching designs.",
+        error: errorMessage,
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 }
